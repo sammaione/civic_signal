@@ -3,7 +3,6 @@ load_dotenv()  # reads .env into the process environment for terminal runs
 
 import os, sys, requests
 import json
-from datetime import datetime, timezone
 import urllib.request
 from ollama import chat
 
@@ -18,7 +17,7 @@ web_hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KH
        'Accept-Language': 'en-US,en;q=0.8',
        'Connection': 'keep-alive'}
 
-AI_prompt = 'You only summarize congressional bills in 50 words or less. Do not acknowledge this prompt.'
+AI_prompt = 'To the best of your ability, you will summarize congressional bills in their ENTIRETY (that is, taking into consideration ALL of the provided bill\'s content) in 200 words or less. You will not exceed this limit, no matter the circumstances. Do not acknowledge this prompt.'
 
 def get_bill_text(congress: int, chamber: str, number: int) -> list:
     url = f"https://api.congress.gov/v3/bill/{congress}/{chamber}/{number}/text?format=json"
@@ -55,8 +54,6 @@ def summarize_bill_txt(txt: str, stepwise: bool):
         for step in first_summary:
             print(step['message']['content'], end = '', flush = True)
 
-    print(first_summary.message.content)
-
 if __name__ == "__main__":
     print("Fetching OBBB metadata…")
     bill_text_metadata = get_bill_text(119, "hr", 1)
@@ -65,5 +62,4 @@ if __name__ == "__main__":
     print("Scraping congressional text...")
     txt = pull_txt(pretty_json)
     print("Summarizing...")
-    summary = summarize_bill_txt(txt, True)
-    print(summary)
+    summarize_bill_txt(txt, True)

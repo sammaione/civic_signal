@@ -17,21 +17,39 @@ web_hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KH
        'Accept-Language': 'en-US,en;q=0.8',
        'Connection': 'keep-alive'}
 
-AI_prompt = 'To the best of your ability, you will summarize congressional bills in their ENTIRETY (that is, taking into consideration ALL of the provided bill\'s content) in 200 words or less. You will not exceed this limit, no matter the circumstances. Do not acknowledge this prompt.'
+AI_prompt = 'To the best of your ability, you will summarize congressional bills in their ENTIRETY (that is, taking into consideration ALL of the provided bill\'s content) in 600 words or less. You will not exceed this limit, no matter the circumstances. Do not acknowledge this prompt.'
 
-def get_bill_text(congress: int, chamber: str, number: int) -> list:
+def get_latest_text_version(congress: int, chamber: str, number: int) -> list:
+    #
+    # Retrieve all metadata pertaining to all text versions of the bill in question
     url = f"https://api.congress.gov/v3/bill/{congress}/{chamber}/{number}/text?format=json"
     response = requests.get(url, headers={"X-Api-Key": API_KEY}, timeout=20)
     response.raise_for_status()
-    return response.json()["textVersions"]
-
-def find_latest_URL(bill_status_dates: list):
+    bill_status_dates = response.json()["textVersions"]
+    #
+    # Retrieve the links for the text versions of the bill with the latest date provided
     d = {}
     for index, entry in enumerate(bill_status_dates):
         d.update({f"{entry["date"]}": index})
     sorted_d = dict(sorted((k, v) for k, v in d.items() if k != "None"))
     value_list = list(sorted_d.values())
     return bill_status_dates[value_list[-1]]["formats"]
+
+def get_latest_summary(congress: int, chamber: str, number: int) -> list:
+    #
+    # Retrieve all metadata pertaining to all summaries of the bill in question
+    url = f"https://api.congress.gov/v3/bill/{congress}/{chamber}/{number}/summaries?format=json"
+    response = requests.get(url, headers={"X-Api-Key": API_KEY}, timeout=20)
+    response.raise_for_status()
+    bill_status_dates = response.json()["summaries"]
+    #
+    # Retrieve the summary of the bill with the latest date provided
+    d = {}
+    for index, entry in enumerate(bill_status_dates):
+        d.update({f"{entry["actionDate"]}": index})
+    sorted_d = dict(sorted((k, v) for k, v in d.items() if k != "None"))
+    value_list = list(sorted_d.values())
+    return bill_status_dates[value_list[-1]]["text"]
 
 def pull_txt(bill_json: str):
     txt_url = next((row['url'] for row in bill_json if row['type'] == 'Formatted Text'), None)
@@ -56,10 +74,11 @@ def summarize_bill_txt(txt: str, stepwise: bool):
 
 if __name__ == "__main__":
     print("Fetching OBBB metadata…")
-    bill_text_metadata = get_bill_text(119, "hr", 1)
-    bill_latest_dated_version = find_latest_URL(bill_text_metadata)
-    pretty_json = json.loads(json.dumps(bill_latest_dated_version, indent=4))
+    latest_dated_text_version = get_latest_text_version(119, "hr", 1)
+    latest_dated_summary = get_latest_summary(119, "hr", 1)
+    # pretty_json = json.dumps(latest_dated_text_version, indent=4))
+    #print(pretty_json)
     print("Scraping congressional text...")
-    txt = pull_txt(pretty_json)
+    txt = pull_txt(latest_dated_text_version)
     print("Summarizing...")
     summarize_bill_txt(txt, True)
